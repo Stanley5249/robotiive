@@ -36,6 +36,18 @@ def select_project_task(project: Project, task_name: str) -> Task:
     raise ValueError(f"task name {task_name!r} not found")
 
 
+def get_project(client: httpx.Client, project_id: str) -> Project:
+    get_projects_response = get_projects(client)
+    return select_project(get_projects_response, project_id)
+
+
+def execute_and_monitor_task(
+    client: httpx.Client, project_id: str, task_id: str
+) -> None:
+    execution_response = execute_task(client, project_id, task_id)
+    monitor_task_progress(client, execution_response.execute_id)
+
+
 # ==============================================================================
 # CLI
 # ==============================================================================
@@ -54,38 +66,46 @@ def run(project_name: str, task_name: str) -> None:
     """Run a task in a project."""
 
     with get_default_client() as client:
-        projects_response = get_projects(client)
-        project = select_project(projects_response, project_name)
+        project = get_project(client, project_name)
         task = select_project_task(project, task_name)
 
-        console.log(f"Running task {task_name!r} in project {project_name!r}...")
+        console.log(f"Running task {task_name!r} in project {project_name!r} ...")
 
-        execution_response = execute_task(client, project["id"], task["id"])
-        monitor_task_progress(client, execution_response.execute_id)
+        with console.status(f"Running task {task_name!r}"):
+            try:
+                execute_and_monitor_task(client, project["id"], task["id"])
 
-    console.log(f"Task {task_name!r} completed successfully.")
+            except Exception:
+                console.log(f"[bold red]Task {task_name!r} failed.")
+                raise
+
+        console.log(f"Task {task_name!r} completed successfully.")
 
 
 @app.command()
 def run_all(project_name: str) -> None:
     """Run all tasks in a project sequentially."""
 
-    console.log(f"Running all tasks in project {project_name!r} ...")
-
     with get_default_client() as client:
-        projects_response = get_projects(client)
-        project = select_project(projects_response, project_name)
+        project = get_project(client, project_name)
         project_id = project["id"]
 
-        for task in project["tasks"]:
-            task_name = task["name"]
-            task_id = task["id"]
+        console.log(f"Running all tasks in project {project_name!r} ...")
 
-            console.log(f"Running task {task_name!r} ...")
+        with console.status("") as status:
+            for task in project["tasks"]:
+                task_name = task["name"]
+                task_id = task["id"]
 
-            execution_response = execute_task(client, project_id, task_id)
-            monitor_task_progress(client, execution_response.execute_id)
+                status.update(f"Running task {task_name!r}")
 
-            console.log(f"Task {task_name!r} completed successfully.")
+                try:
+                    execute_and_monitor_task(client, project_id, task_id)
 
-    console.log("All tasks completed successfully.")
+                except Exception:
+                    console.log(f"[bold red]Task {task_name!r} failed.")
+                    raise
+
+                console.log(f"Task {task_name!r} completed successfully.")
+
+        console.log("All tasks completed successfully.")
