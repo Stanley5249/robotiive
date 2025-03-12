@@ -1,8 +1,9 @@
 [project]
 name = "robotiive"
 version = "0.1.0"
-description = "Non-official script for running robotive tasks"
+description = "Unofficial script for running Robotiive tasks."
 readme = "README.md"
+license = {text = "MIT"}
 authors = [{ name = "Stanley5249", email = "seer852741@gmail.com" }]
 requires-python = ">=3.12"
 dependencies = [
