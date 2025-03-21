@@ -17,7 +17,11 @@ __all__ = ["app", "run", "run_all"]
 
 
 def get_default_client() -> httpx.Client:
-    return httpx.Client(verify=False, timeout=10.0, base_url="https://localhost:16888/")
+    return httpx.Client(
+        verify=False,
+        timeout=httpx.Timeout(30.0),
+        base_url="https://localhost:16888/",
+    )
 
 
 def select_project(projects_response: ProjectsResponse, project_name: str) -> Project:
